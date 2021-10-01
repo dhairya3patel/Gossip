@@ -41,3 +41,15 @@ let createFulltopology (actor:String) (actorList:list<IActorRef>) =
             neighbourList <- actorList.[i] :: neighbourList
     neighbourList
 
+
+let Supervisor (mailbox: Actor<_>) =
+    
+    let rec loop () = actor {
+        let! message = mailbox.Receive()
+        match message with
+            | Begin(_) ->
+                if algorithm = "gossip" then
+                    let actorList = [ for i in 1 .. numNodes do yield (spawn system ("Actor_" + string (i))) Gossip]
+                    actorList |> List.iter(fun node -> node <! BuildNetwork(topology,mailbox.Self,actorList))
+        return! loop()
+    }
