@@ -31,25 +31,45 @@ type WorkerComm =
 
 
 //Full Topology 
-let createFulltopology (actor:String) (actorList:list<IActorRef>) =
+let createFulltopology (actor:string) (actorList:list<IActorRef>) =
+    let id = (actor.Split '_').[1] |> int
+    let neighbours = actorList |> List.indexed |> List.filter (fun (i, _) -> i <> id-1) |> List.map snd    
+    neighbours
 
-    let id = (actor.Split '-').[1] |> int
-    let mutable neighbourList =[]
 
-    for i in 1..actorList.Length do 
-        if i <> id then
-            neighbourList <- actorList.[i] :: neighbourList
-    neighbourList
+let Gossip (mailbox: Actor<_>) =
+    let mutable neighbours = []
+    let mutable actorName = ""
+    let mutable supervisorRef = mailbox.Self
+    let rec loop () =
+        actor {
+            let! message = mailbox.Receive()
+            let workermessage: WorkerComm = message
+            match workermessage with
+                | BuildNetwork(topology,supervisor,actorList) ->                
+                    actorName <- mailbox.Self.Path.Name
+                    if topology = "full" then 
+                        neighbours <- createFulltopology actorName actorList
+                    supervisorRef <- supervisor    
+            return! loop()            
+    }
+
+    loop ()    
 
 
 let Supervisor (mailbox: Actor<_>) =
     
     let rec loop () = actor {
         let! message = mailbox.Receive()
-        match message with
+        let supervisormessage: SupervisorComm = message 
+        match supervisormessage with
             | Begin(_) ->
                 if algorithm = "gossip" then
                     let actorList = [ for i in 1 .. numNodes do yield (spawn system ("Actor_" + string (i))) Gossip]
                     actorList |> List.iter(fun node -> node <! BuildNetwork(topology,mailbox.Self,actorList))
         return! loop()
     }
+    loop()
+
+let supervisor = spawn system "supervisor" Supervisor
+supervisor <! Begin("Begin")
