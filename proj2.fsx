@@ -14,9 +14,6 @@ let r = Random()
 //Creating ActorSystem
 let system = ActorSystem.Create("Project2")
 
-    
-   
-
 type Comm =
     | Begin of string    
     | BuildNetwork of string * IActorRef * list<IActorRef> 
@@ -32,6 +29,19 @@ let createFulltopology (actor:IActorRef) (actorList:list<IActorRef>) =
         temp <- (i.Path.Name.Split '_').[1] |> int
         if id <> temp then
             neighbours <- i :: neighbours
+    neighbours
+
+let createLineTopology (actor:string) (actorList:list<IActorRef>) =
+    let mutable neighbours = []
+    let id = (actor.Split '_').[1] |> int
+    if(id = 0) then
+        neighbours.[0] <- actorList.[id+1]
+    elif(id = numNodes - 1) then
+        neighbours <- actorList.[numNodes - 2] :: neighbours
+    else
+        neighbours <- actorList.[id-1] :: neighbours
+        neighbours <- actorList.[id+1] :: neighbours
+    Console.WriteLine(neighbours)
     neighbours
 
 
