@@ -14,9 +14,6 @@ let r = Random()
 //Creating ActorSystem
 let system = ActorSystem.Create("Project2")
 
-    
-   
-
 type Comm =
     | Begin of string    
     | BuildNetwork of string * IActorRef * list<IActorRef> 
@@ -32,6 +29,19 @@ let createFulltopology (actor:IActorRef) (actorList:list<IActorRef>) =
         temp <- (i.Path.Name.Split '_').[1] |> int
         if id <> temp then
             neighbours <- i :: neighbours
+
+//Line topology
+let createLineTopology (actor:string) (actorList:list<IActorRef>) =
+    let mutable neighbours = []
+    let id = (actor.Split '_').[1] |> int
+    if(id = 0) then
+        neighbours.[0] <- actorList.[id+1]
+    elif(id = numNodes - 1) then
+        neighbours <- actorList.[numNodes - 2] :: neighbours
+    else
+        neighbours <- actorList.[id-1] :: neighbours
+        neighbours <- actorList.[id+1] :: neighbours
+    Console.WriteLine(neighbours)
     neighbours
 
 
@@ -47,34 +57,14 @@ let Gossip (mailbox: Actor<_>) =
             let! workermessage = mailbox.Receive()
             // let workermessage: WorkerComm = message
             match workermessage with
-                |   BuildNetwork(topology,supervisor,actorList) ->                
-                        if topology = "full" then 
-                            neighbours <- createFulltopology mailbox.Self actorList
-                        count <- neighbours.Length    
-                        supervisorRef <- supervisor    
-                |   Rumour(gossip,source) ->
-                        if source = supervisorRef then
-                            Console.WriteLine (mailbox.Self.Path.Name + " gossip start " + threshold.ToString() + "Count " + count.ToString())
-                            firstTime <- false
-                            neighbours.[(r.Next(neighbours.Length))] <! Rumour(gossip,mailbox.Self)
-                            gossipStart <- true
-                        else
-                            if not firstTime then
-                                threshold <- threshold - 1
-                                Console.WriteLine (mailbox.Self.Path.Name + " Received Again " + threshold.ToString() + "Count " + count.ToString())
-                                if threshold <> 0 then
-                                    neighbours.[(r.Next(neighbours.Length))] <! Rumour(gossip,mailbox.Self)
-                                else
-                                    count <- count - 1
-                                    Console.WriteLine (mailbox.Self.ToString() + "Down " + threshold.ToString() + "Count " + count.ToString())
-                                    if count = 0 then
-                                        supervisorRef <! Terminate("Done")
-                            else 
-                                Console.WriteLine (mailbox.Self.Path.Name + " First " + threshold.ToString() + "Count " + count.ToString())
-                                firstTime <- false
-                                neighbours.[(r.Next(neighbours.Length))] <! Rumour(gossip,mailbox.Self)
-                |   _ -> Console.WriteLine "Hi" 
-                        //ignore()
+                | BuildNetwork(topology,supervisor,actorList) ->                
+                    actorName <- mailbox.Self.Path.Name
+                    if topology = "full" then 
+                        neighbours <- createFulltopology actorName actorList
+                    else 
+                        // topology = "full" then 
+                        neighbours <- createLineTopology actorName actorList
+                    supervisorRef <- supervisor    
             return! loop()            
     }
 
@@ -87,18 +77,10 @@ let Supervisor (mailbox: Actor<_>) =
         let! supervisormessage = mailbox.Receive()
         // let supervisormessage: SupervisorComm = message 
         match supervisormessage with
-            |   Begin(_) ->
-                    if algorithm = "gossip" then
-                        let actorList = [ for i in 1 .. numNodes do yield (spawn system ("Actor_" + string (i))) Gossip]
-                        actorList |> List.iter(fun node -> node <! BuildNetwork(topology,mailbox.Self,actorList))
-                        let gossip = r.Next()
-                        actorList.[(r.Next(1,numNodes))] <! Rumour(gossip,mailbox.Self)
-
-            |   Terminate(_) ->
-                    Console.WriteLine "Done"
-                    system.WhenTerminated.Wait()
-
-            |   _ -> ignore()        
+            | Begin(_) ->
+                if algorithm = "gossip" then
+                    let actorList = [ for i in 0 .. numNodes - 1 do yield (spawn system ("Actor_" + string (i))) Gossip]
+                    actorList |> List.iter(fun node -> node <! BuildNetwork(topology,mailbox.Self,actorList))
         return! loop()
     }
     loop()
