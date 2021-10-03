@@ -31,12 +31,12 @@ let createFulltopology (actor:IActorRef) (actorList:list<IActorRef>) =
             neighbours <- i :: neighbours
     neighbours
 
-let createLineTopology (actor:string) (actorList:list<IActorRef>) =
+let createLineTopology (actor:IActorRef) (actorList:list<IActorRef>) =
     let mutable neighbours = []
-    let id = (actor.Split '_').[1] |> int
-    if(id = 0) then
-        neighbours.[0] <- actorList.[id+1]
-    elif(id = numNodes - 1) then
+    let id = (actor.Path.Name.Split '_').[1] |> int
+    if(id = 1) then
+        neighbours <- actorList.[id] :: neighbours
+    elif(id = numNodes) then
         neighbours <- actorList.[numNodes - 2] :: neighbours
     else
         neighbours <- actorList.[id-1] :: neighbours
@@ -60,6 +60,8 @@ let Gossip (mailbox: Actor<_>) =
                 |   BuildNetwork(topology,supervisor,actorList) ->                
                         if topology = "full" then 
                             neighbours <- createFulltopology mailbox.Self actorList
+                        else
+                            neighbours <- createLineTopology mailbox.Self actorList
                         count <- neighbours.Length    
                         supervisorRef <- supervisor    
                 |   Rumour(gossip,source) ->
