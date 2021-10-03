@@ -35,7 +35,7 @@ let createLineTopology (actor:string) (actorList:list<IActorRef>) =
     let mutable neighbours = []
     let id = (actor.Split '_').[1] |> int
     if(id = 0) then
-        neighbours.[0] <- actorList.[id+1]
+        neighbours <- actorList.[id+1] :: neighbours
     elif(id = numNodes - 1) then
         neighbours <- actorList.[numNodes - 2] :: neighbours
     else
@@ -58,7 +58,7 @@ let Gossip (mailbox: Actor<_>) =
             // let workermessage: WorkerComm = message
             match workermessage with
                 | BuildNetwork(topology,supervisor,actorList) ->                
-                    actorName <- mailbox.Self.Path.Name
+                    // actorName <- mailbox.Self.Path.Name
                     if topology = "full" then 
                         neighbours <- createFulltopology actorName actorList
                     else 
