@@ -48,10 +48,49 @@ let createLineTopology (actor:IActorRef) (actorList:list<IActorRef>) =
     // Console.WriteLine(actor.ToString() + " " + neighbours.ToString())
     neighbours
 
+let cubeRootCorrection (number: int)=
+    let mutable rows = Math.Round(Math.Pow(number |> float, 0.33)) |> int 
+    // if (number = rows * rows * rows) then
+    //     Console.WriteLine(rows)
+    //     rows
+    // else 
+    //     let temp = number |> float
+    //     rows <- Math.Floor(Math.Pow( temp - 1.0, 0.33))  |> int
+        
+    // Console.WriteLine("Rounded off: "+ rows.ToString())
+    rows
+        
+
+
+let create3dTopology (actor:IActorRef) (actorList:list<IActorRef>) =
+    let mutable neighbours = []
+    let id = (actor.Path.Name.Split '_').[1] |> int
+    // let rows = Math.Round(Math.Pow((float numNodes), 0.33)) |> in
+    let seed = cubeRootCorrection(numNodes)
+
+    // Console.WriteLine("ID" + id.ToString())
+    
+    let seedSquare = seed*seed
+    if id-1 > 0 then 
+        neighbours <- actorList.[id-1] :: neighbours
+    if id-seed > 0 then
+        neighbours <- actorList.[id-seed] :: neighbours
+    if id- (seedSquare) > 0 then
+        neighbours <- actorList.[id-(seedSquare)] :: neighbours
+    if id+1 < numNodes then 
+        neighbours <- actorList.[id+1] :: neighbours
+    if id+seed < numNodes then
+        neighbours <- actorList.[id+seed] :: neighbours
+    if id+ (seedSquare) < numNodes then
+        neighbours <- actorList.[id+(seedSquare)] :: neighbours
+
+    Console.WriteLine(id.ToString() + " " + neighbours.ToString() + " " + neighbours.Length.ToString() )
+    neighbours
+
 
 let Gossip (mailbox: Actor<_>) =
     let mutable neighbours = []
-    let mutable threshold = 50
+    let mutable threshold = 10
     let mutable supervisorRef = mailbox.Self
 
     let mutable firstTime = true
@@ -62,6 +101,8 @@ let Gossip (mailbox: Actor<_>) =
                 |   BuildNetwork(topology,supervisor,actorList) ->                
                         if topology = "full" then 
                             neighbours <- createFulltopology mailbox.Self actorList
+                        elif topology = "3d" then
+                            neighbours <- create3dTopology mailbox.Self actorList
                         else
                             neighbours <- createLineTopology mailbox.Self actorList
                         supervisorRef <- supervisor    
@@ -75,6 +116,7 @@ let Gossip (mailbox: Actor<_>) =
                             //    Console.WriteLine (mailbox.Self.Path.Name + " Received Again " + threshold.ToString()) //+ "Count " + count.ToString())
                             if threshold > 0 && neighbours.Length <> 0 then
                                 neighbours.[r.Next(neighbours.Length)] <! Rumour(gossip,mailbox.Self,supervisorRef)//,received)
+                                Console.WriteLine(mailbox.Self.ToString() + "Sending to: " + neighbours.[r.Next(neighbours.Length)].ToString())
                                 system.Scheduler.ScheduleTellOnce(TimeSpan.FromSeconds(1.0),mailbox.Self,Rumour(gossip,mailbox.Self,supervisorRef))
                             else if threshold = 0 && source <> mailbox.Self || neighbours.Length = 0 then
                                 if not(List.contains mailbox.Self dead) then
