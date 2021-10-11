@@ -72,23 +72,59 @@ let create3dTopology (actor:IActorRef) (actorList:list<IActorRef>) =
 
     // Console.WriteLine("ID" + id.ToString())
     
-    let seedSquare = seed*seed |> int
-    if id - 1 > 0 then
-        neighbours <- actorList.[id - 2] :: neighbours
-    if id - seed > 0 then
-        neighbours <- actorList.[id - seed - 1] :: neighbours
-    if id - seedSquare > 0 then
-        neighbours <- actorList.[id - seedSquare  - 1] :: neighbours
-    if id + 1 <= numNodes then 
+    let seedSquare = seed*seed
+    if id-1 > 0 then 
+        neighbours <- actorList.[id-2] :: neighbours
+    if id-seed > 0 then
+        neighbours <- actorList.[id-seed-1] :: neighbours
+    if id - (seedSquare) > 0 then
+        neighbours <- actorList.[id-(seedSquare)-1] :: neighbours
+    if id+1 < numNodes+1 then 
         neighbours <- actorList.[id] :: neighbours
-    if id + seed <= numNodes then
-        neighbours <- actorList.[id + seed - 1 ] :: neighbours
-    if id + seedSquare <= numNodes then
-        neighbours <- actorList.[id + seedSquare - 1] :: neighbours
+    if id+seed < numNodes+1 then
+        neighbours <- actorList.[id+seed-1] :: neighbours
+    if id+ (seedSquare) < numNodes+ 1 then
+        neighbours <- actorList.[id+(seedSquare)-1] :: neighbours
 
-    // Console.WriteLine id
-    // for i in neighbours do 
-    //     Console.WriteLine i //(id.ToString() + " " + neighbours.ToString() + " " + neighbours.Length.ToString() )
+    Console.WriteLine (id.ToString() + "Neighbours: " + neighbours.ToString() + neighbours.Length.ToString())
+
+    // for i in neighbours do
+    //     Console.WriteLine i//(id.ToString() + " " + neighbours.ToString() + " " + neighbours.Length.ToString() )
+    neighbours
+
+let createImperfect3dTopology (actor:IActorRef) (actorList:list<IActorRef>) =
+    let mutable neighbours = []
+    let id = (actor.Path.Name.Split '_').[1] |> int
+    // let rows = Math.Round(Math.Pow((float numNodes), 0.33)) |> in
+    let seed = cubeRootCorrection(numNodes)
+
+    // Console.WriteLine("ID" + id.ToString())
+    
+    let seedSquare = seed*seed
+    if id-1 > 0 then 
+        neighbours <- actorList.[id-2] :: neighbours
+    if id-seed > 0 then
+        neighbours <- actorList.[id-seed-1] :: neighbours
+    if id - (seedSquare) > 0 then
+        neighbours <- actorList.[id-(seedSquare)-1] :: neighbours
+    if id+1 < numNodes+1 then 
+        neighbours <- actorList.[id] :: neighbours
+    if id+seed < numNodes+1 then
+        neighbours <- actorList.[id+seed-1] :: neighbours
+    if id+ (seedSquare) < numNodes+ 1 then
+        neighbours <- actorList.[id+(seedSquare)-1] :: neighbours
+
+    let mutable newRandomActor = actorList.[r.Next(1,numNodes)-1]
+
+    while List.contains newRandomActor neighbours && (newRandomActor <> actorList.[id]) do
+        newRandomActor <- actorList.[r.Next(1,numNodes)-1]
+
+    neighbours <- newRandomActor :: neighbours
+
+    Console.WriteLine (id.ToString() + "Neighbours: " + neighbours.ToString() + neighbours.Length.ToString())
+
+    // for i in neighbours do
+    //     Console.WriteLine i//(id.ToString() + " " + neighbours.ToString() + " " + neighbours.Length.ToString() )
     neighbours
 
 
@@ -107,8 +143,13 @@ let Gossip (mailbox: Actor<_>) =
                             neighbours <- createFulltopology mailbox.Self actorList
                         elif topology = "3d" then
                             neighbours <- create3dTopology mailbox.Self actorList
-                        else
+                        elif topology = "line" then
                             neighbours <- createLineTopology mailbox.Self actorList
+                        elif topology = "imperfect3d" then
+                            neighbours <- createImperfect3dTopology mailbox.Self actorList
+                        else
+                            printfn "Enter valid Topology!"
+
                         supervisorRef <- supervisor    
                 |   Rumour(gossip,source,supervisor) -> 
 
