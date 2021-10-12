@@ -194,22 +194,14 @@ let Gossip (mailbox: Actor<_>) =
                     else if not (List.contains mailbox.Self dead) then
                         supervisor <! Terminate("Down", mailbox.Self)
 
+
             | Remove (actor) ->
-                if List.contains actor neighbours then
-                    let actorId = actor.Path.Name.Split('_').[1] |> int
-                    let mutable temp = 0
-                    let mutable newList = []
-
-                    for i in neighbours do
-                        temp <- (i.Path.Name.Split '_').[1] |> int
-
-                        if actorId <> temp then
-                            newList <- i :: newList
-
-                    neighbours <- newList
-
-                    if neighbours.Length = 0 then
-                        Terminate("Down", mailbox.Self) |> ignore
+                if actor <> mailbox.Self then
+                    if List.contains actor neighbours then
+                        let actorId = actor.Path.Name.Split('_').[1] |> int
+                        neighbours <- neighbours |> List.indexed |> List.filter(fun(_,x)-> x.Path.Name.Split('_').[1] |> int <> actorId) |> List.map snd
+                        if neighbours.Length = 0 then
+                            Terminate("Down", mailbox.Self) |> ignore
             | _ -> ignore ()
 
             return! loop ()
@@ -239,8 +231,14 @@ let Pushsum (mailbox: Actor<_>) =
             | BuildNetwork (topology, supervisor, actorList) ->
                 if topology = "full" then
                     neighbours <- createFulltopology mailbox.Self actorList
-                else
+                elif topology = "3d" then
+                    neighbours <- create3dTopology mailbox.Self actorList
+                elif topology = "line" then
                     neighbours <- createLineTopology mailbox.Self actorList
+                elif topology = "imperfect3d" then
+                    neighbours <- createImperfect3dTopology mailbox.Self actorList
+                else
+                    printfn "Enter valid Topology!"
 
                 supervisorRef <- supervisor
 
@@ -297,17 +295,7 @@ let Pushsum (mailbox: Actor<_>) =
             | Remove (actor) ->
                 if List.contains actor neighbours then
                     let actorId = actor.Path.Name.Split('_').[1] |> int
-                    let mutable temp = 0
-                    let mutable newList = []
-
-                    for i in neighbours do
-                        temp <- (i.Path.Name.Split '_').[1] |> int
-
-                        if actorId <> temp then
-                            newList <- i :: newList
-
-                    neighbours <- newList
-
+                    neighbours <- neighbours |> List.indexed |> List.filter(fun(_,x)-> x.Path.Name.Split('_').[1] |> int <> actorId) |> List.map snd
                     if neighbours.Length = 0 then
                         Terminate("Down", mailbox.Self) |> ignore
 
@@ -368,7 +356,7 @@ let Supervisor (mailbox: Actor<_>) =
                     if not (List.contains actor dead) then
 
                         dead <- actor :: dead
-
+                        Console.WriteLine dead.Length
                         actorList
                         |> List.iter (fun node -> node <! Remove(actor))
 
@@ -377,8 +365,9 @@ let Supervisor (mailbox: Actor<_>) =
 
                 if termMsg = "Done" && actor = mailbox.Self then
                     mailbox.Context.System.Terminate() |> ignore
-                    system.Terminate() |> ignore
                     time <- timer.ElapsedMilliseconds |> int
+                    system.Terminate() |> ignore
+                    
 
 
             | _ -> ignore ()
@@ -390,6 +379,5 @@ let Supervisor (mailbox: Actor<_>) =
 
 let supervisor = spawn system "supervisor" Supervisor
 supervisor <! Begin("Begin")
-
 system.WhenTerminated.Wait()
 Console.WriteLine("Time taken to Converge " + time.ToString())
