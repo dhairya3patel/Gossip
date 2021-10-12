@@ -221,7 +221,7 @@ let Pushsum (mailbox: Actor<_>) =
     let mutable w = 1.0
     let mutable threshold = 3
     let mutable ratio = s / w |> float
-    let numCheck = 10.0 ** -20.0 |> float
+    let numCheck = 10.0 ** -10.0 |> float
     let mutable firstTime = true
 
     let rec loop () =
