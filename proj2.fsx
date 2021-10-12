@@ -43,15 +43,13 @@ let createFulltopology (actor: IActorRef) (actorList: list<IActorRef>) =
 let createLineTopology (actor: IActorRef) (actorList: list<IActorRef>) =
     let mutable neighbours = []
     let id = (actor.Path.Name.Split '_').[1] |> int
-
-    if (id = 1) then
-        neighbours <- actorList.[id] :: neighbours
-    elif (id = numNodes) then
-        neighbours <- actorList.[numNodes - 2] :: neighbours
-    else
-        neighbours <- actorList.[id] :: neighbours
+    if id - 1 > 0 then
         neighbours <- actorList.[id - 2] :: neighbours
 
+    if id + 1 < numNodes + 1 then
+        neighbours <- actorList.[id] :: neighbours
+
+    // Console.WriteLine(actor.ToString() + "Neighbours: " + neighbours.ToString())
     neighbours
 
 
